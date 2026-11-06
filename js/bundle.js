@@ -818,11 +818,16 @@ async function flushSyncQueue() {
 }
 
 /**
- * Pull recent games from Google Sheets and merge into local history.
+ * Pull games from Google Sheets and replace local history with the sheet's authoritative rows
+ * (preserving only any still-unsynced offline games in the queue).
  */
-async function pullFromCloud(limit = 150) {
+async function pullFromCloud(limit = 300) {
   const { gasUrl, passcode } = getSettings();
   if (!gasUrl) throw new Error("尚未設定 GAS Web App 網址");
+
+  if (getQueueIds().length > 0) {
+    await flushSyncQueue();
+  }
 
   syncInFlight = true;
   notifySync(getSyncStatus());
@@ -842,26 +847,38 @@ async function pullFromCloud(limit = 150) {
     if (!data.ok) throw new Error(data.error || "拉取雲端紀錄失敗");
 
     const cloudGames = Array.isArray(data.games) ? data.games : [];
+    const pendingSet = new Set(getQueueIds());
     const localHistory = getHistory();
     const byId = new Map();
 
-    for (const g of localHistory) {
-      if (g?.gameId) byId.set(g.gameId, g);
-    }
-    let added = 0;
+    // 1. Authoritative rows from Google Sheets
     for (const cg of cloudGames) {
       if (!cg?.gameId) continue;
-      if (!byId.has(cg.gameId)) {
-        byId.set(cg.gameId, cg);
-        added += 1;
+      byId.set(cg.gameId, cg);
+    }
+
+    // 2. Keep any offline games that haven't finished uploading yet
+    for (const g of localHistory) {
+      if (g?.gameId && pendingSet.has(g.gameId) && !byId.has(g.gameId)) {
+        byId.set(g.gameId, g);
       }
     }
 
-    const merged = [...byId.values()].sort((a, b) =>
-      String(b.endedAt || "").localeCompare(String(a.endedAt || ""))
+    const toMs = (iso) => {
+      const t = new Date(iso || 0).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+
+    const merged = [...byId.values()].sort(
+      (a, b) => toMs(b.endedAt) - toMs(a.endedAt)
     );
     writeJson(KEYS.HISTORY, merged);
-    return { ok: true, added, totalLocal: merged.length, totalCloud: data.totalGames };
+    return {
+      ok: true,
+      added: cloudGames.length,
+      totalLocal: merged.length,
+      totalCloud: data.totalGames ?? cloudGames.length,
+    };
   } finally {
     syncInFlight = false;
     notifySync(getSyncStatus());
@@ -1575,6 +1592,8 @@ const els = {
   bullBreakdown: $("bull-breakdown"),
   awardsWall: $("awards-wall"),
   historyTbody: $("history-tbody"),
+  historySourceNote: $("history-source-note"),
+  btnRefreshSheet: $("btn-refresh-sheet"),
   btnExportGamesCsv: $("btn-export-games-csv"),
   btnExportDartsCsv: $("btn-export-darts-csv"),
 
@@ -2064,11 +2083,18 @@ function renderStatsView() {
     })
     .join("");
 
-  // Recent Games Table
+  // Recent Games Table (Read-only mirror of Google Sheets)
+  if (els.historySourceNote) {
+    const hasCloud = Boolean(getSettings().gasUrl);
+    els.historySourceNote.textContent = hasCloud
+      ? "直接同步讀取自 Google Sheets (Games) — 修改或刪除請直接於試算表操作"
+      : "尚未綁定 Google Sheets（目前顯示本機暫存紀錄）";
+  }
+
   if (data.recentGames.length === 0) {
     els.historyTbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align:center; padding: 1.5rem; color: var(--text-muted)">
+        <td colspan="7" style="text-align:center; padding: 1.5rem; color: var(--text-muted)">
           尚無對局紀錄
         </td>
       </tr>
@@ -2094,11 +2120,6 @@ function renderStatsView() {
             <td>${g.sBullHits || 0} / ${g.dBullHits || 0}</td>
             <td class="history-rounds-cell" title="${escapeHtml(g.roundByRound || "")}">
               ${escapeHtml(g.roundByRound || "")}
-            </td>
-            <td>
-              <button type="button" class="del-row-btn" data-delete-id="${g.gameId}">
-                刪除
-              </button>
             </td>
           </tr>
         `;
@@ -2374,6 +2395,28 @@ function requestModeOrRestart(targetMode) {
   els.dialogConfirm.showModal();
 }
 
+async function refreshFromSheets({ silent = true } = {}) {
+  const { gasUrl } = getSettings();
+  if (!gasUrl) return;
+  if (els.btnRefreshSheet) {
+    els.btnRefreshSheet.disabled = true;
+    els.btnRefreshSheet.textContent = "讀取中…";
+  }
+  try {
+    await pullFromCloud(300);
+    renderAll();
+  } catch (err) {
+    if (!silent) {
+      showSyncFeedback(`✕ 讀取失敗：${err.message || err}`, true);
+    }
+  } finally {
+    if (els.btnRefreshSheet) {
+      els.btnRefreshSheet.disabled = false;
+      els.btnRefreshSheet.textContent = "重新讀取 Sheets";
+    }
+  }
+}
+
 function switchTab(nextTab) {
   const apply = () => {
     currentTab = nextTab;
@@ -2382,7 +2425,10 @@ function switchTab(nextTab) {
     els.viewStats.hidden = !isStats;
     els.btnToggleView.setAttribute("aria-pressed", String(isStats));
     els.toggleViewLabel.textContent = isStats ? "返回計分板" : "數據分析";
-    if (isStats) renderStatsView();
+    if (isStats) {
+      renderStatsView();
+      void refreshFromSheets({ silent: true });
+    }
   };
 
   if (document.startViewTransition) {
@@ -2486,14 +2532,12 @@ function initEvents() {
     });
   }
 
-  // Delete game row in history table
-  els.historyTbody.addEventListener("click", (e) => {
-    const delBtn = e.target.closest("[data-delete-id]");
-    if (!delBtn) return;
-    const id = delBtn.dataset.deleteId;
-    deleteGame(id);
-    renderAll();
-  });
+  // Refresh directly from Google Sheets button in history table header
+  if (els.btnRefreshSheet) {
+    els.btnRefreshSheet.addEventListener("click", () => {
+      void refreshFromSheets({ silent: false });
+    });
+  }
 
   // Settings Modal
   els.btnOpenSettings.addEventListener("click", () => {
@@ -2522,12 +2566,13 @@ function initEvents() {
       return;
     }
 
-    showSyncFeedback("⏳ 正在測試 Google Sheets 連線…", false);
+    showSyncFeedback("⏳ 正在測試 Google Sheets 連線並同步讀取…", false);
     try {
       const res = await testGasConnection(gasUrl, passcode);
-      await flushSyncQueue();
+      await pullFromCloud(300);
+      renderAll();
       showSyncFeedback(
-        `✓ 連線成功！已連結試算表「${res.sheetName}」（雲端共 ${res.totalGames} 場紀錄）`,
+        `✓ 連線成功！已同步試算表「${res.sheetName}」（目前共 ${res.totalGames} 場紀錄）`,
         false
       );
     } catch (err) {
@@ -2546,6 +2591,8 @@ function initEvents() {
     showSyncFeedback("⏳ 正在將本機所有紀錄同步至 Google Sheets…", false);
     const res = await pushAllLocalToCloud();
     if (res.ok) {
+      await pullFromCloud(300);
+      renderAll();
       showSyncFeedback(
         `✓ 同步完成！新增上傳 ${res.uploaded} 場，略過已存在 ${res.skipped} 場（試算表共 ${res.totalGames} 場）`,
         false
@@ -2563,16 +2610,16 @@ function initEvents() {
       showSyncFeedback("請先填入 GAS Web App 網址", true);
       return;
     }
-    showSyncFeedback("⏳ 正在從 Google Sheets 拉取歷史對局…", false);
+    showSyncFeedback("⏳ 正在從 Google Sheets 完整覆蓋讀取紀錄…", false);
     try {
-      const res = await pullFromCloud(200);
+      const res = await pullFromCloud(300);
       renderAll();
       showSyncFeedback(
-        `✓ 拉取完成！合併新增 ${res.added} 場紀錄（本機目前共 ${res.totalLocal} 場）`,
+        `✓ 已與 Google Sheets 完全同步！（共讀取 ${res.totalCloud} 場紀錄）`,
         false
       );
     } catch (err) {
-      showSyncFeedback(`✕ 拉取失敗：${err.message || err}`, true);
+      showSyncFeedback(`✕ 讀取失敗：${err.message || err}`, true);
     }
   });
 
@@ -2585,7 +2632,7 @@ function initEvents() {
   updateSyncBadge(getSyncStatus());
 
   window.addEventListener("online", () => {
-    void flushSyncQueue();
+    void refreshFromSheets({ silent: true });
   });
 }
 
@@ -2639,7 +2686,7 @@ setupDialogs();
 initEvents();
 renderAll();
 void requestWakeLock();
-void flushSyncQueue();
+void refreshFromSheets({ silent: true });
 registerServiceWorker();
 
 

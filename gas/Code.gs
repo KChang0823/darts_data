@@ -134,6 +134,16 @@ function doPost(e) {
       });
     }
 
+    if (body.action === "pull") {
+      const limit = Math.min(Number(body.limit || 300), 1000);
+      const games = readRecentGames(gamesSheet, limit);
+      return jsonResponse({
+        ok: true,
+        games: games,
+        totalGames: Math.max(0, gamesSheet.getLastRow() - 1),
+      });
+    }
+
     const incoming =
       body.action === "syncBatch" && Array.isArray(body.games)
         ? body.games

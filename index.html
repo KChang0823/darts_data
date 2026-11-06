@@ -401,7 +401,15 @@
           <!-- Recent Games History Table -->
           <section class="stats-card">
             <div class="card-head">
-              <h2 class="card-title">近期完賽紀錄明細</h2>
+              <div>
+                <h2 class="card-title">近期完賽紀錄明細</h2>
+                <span class="card-subtitle" id="history-source-note">直接同步讀取自 Google Sheets (Games)</span>
+              </div>
+              <div class="card-actions">
+                <button type="button" id="btn-refresh-sheet" class="secondary-btn">
+                  重新讀取 Sheets
+                </button>
+              </div>
             </div>
             <div class="history-table-wrap">
               <table class="history-table">
@@ -414,7 +422,6 @@
                     <th>核心表現</th>
                     <th>Bull (S/D)</th>
                     <th>每輪軌跡摘要</th>
-                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="history-tbody"></tbody>

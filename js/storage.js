@@ -281,11 +281,16 @@ export async function flushSyncQueue() {
 }
 
 /**
- * Pull recent games from Google Sheets and merge into local history.
+ * Pull games from Google Sheets and replace local history with the sheet's authoritative rows
+ * (preserving only any still-unsynced offline games in the queue).
  */
-export async function pullFromCloud(limit = 150) {
+export async function pullFromCloud(limit = 300) {
   const { gasUrl, passcode } = getSettings();
   if (!gasUrl) throw new Error("尚未設定 GAS Web App 網址");
+
+  if (getQueueIds().length > 0) {
+    await flushSyncQueue();
+  }
 
   syncInFlight = true;
   notifySync(getSyncStatus());
@@ -305,26 +310,38 @@ export async function pullFromCloud(limit = 150) {
     if (!data.ok) throw new Error(data.error || "拉取雲端紀錄失敗");
 
     const cloudGames = Array.isArray(data.games) ? data.games : [];
+    const pendingSet = new Set(getQueueIds());
     const localHistory = getHistory();
     const byId = new Map();
 
-    for (const g of localHistory) {
-      if (g?.gameId) byId.set(g.gameId, g);
-    }
-    let added = 0;
+    // 1. Authoritative rows from Google Sheets
     for (const cg of cloudGames) {
       if (!cg?.gameId) continue;
-      if (!byId.has(cg.gameId)) {
-        byId.set(cg.gameId, cg);
-        added += 1;
+      byId.set(cg.gameId, cg);
+    }
+
+    // 2. Keep any offline games that haven't finished uploading yet
+    for (const g of localHistory) {
+      if (g?.gameId && pendingSet.has(g.gameId) && !byId.has(g.gameId)) {
+        byId.set(g.gameId, g);
       }
     }
 
-    const merged = [...byId.values()].sort((a, b) =>
-      String(b.endedAt || "").localeCompare(String(a.endedAt || ""))
+    const toMs = (iso) => {
+      const t = new Date(iso || 0).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+
+    const merged = [...byId.values()].sort(
+      (a, b) => toMs(b.endedAt) - toMs(a.endedAt)
     );
     writeJson(KEYS.HISTORY, merged);
-    return { ok: true, added, totalLocal: merged.length, totalCloud: data.totalGames };
+    return {
+      ok: true,
+      added: cloudGames.length,
+      totalLocal: merged.length,
+      totalCloud: data.totalGames ?? cloudGames.length,
+    };
   } finally {
     syncInFlight = false;
     notifySync(getSyncStatus());
