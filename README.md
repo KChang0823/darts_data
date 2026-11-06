@@ -38,7 +38,7 @@ Darts/
 1. 前往 [Google Sheets](https://sheets.new) 新增一份空白試算表，命名為 `Darts_Database`（或任意名稱）。
 2. 點選頂部選單 **「擴充功能 (Extensions)」➔「Apps Script」**。
 3. 將編輯器內預設的 `function myFunction() {}` 刪除，把本專案 [`gas/Code.gs`](./gas/Code.gs) 的全部內容複製貼上，按 `Cmd + S`（或點擊磁碟片圖示）儲存。
-4. *(選用)* 在上方函式下拉選單選擇 `setup`，點擊 **「執行 (Run)」**，並在跳出的權限視窗點選「審查權限 ➔ 選擇你的 Google 帳號 ➔ 進階 ➔ 前往專案（不安全）➔ 允許」。執行後試算表會立刻自動建立好 **`Games`** 與 **`Darts`** 兩張深色標題列的工作表！（若略過此步，第一次從網頁上傳時也會自動建立）。
+4. *(選用)* 在上方函式下拉選單選擇 `setup`，點擊 **「執行 (Run)」**，並在跳出的權限視窗點選「審查權限 ➔ 選擇你的 Google 帳號 ➔ 進階 ➔ 前往專案（不安全）➔ 允許」。執行後試算表會立刻自動建立好 **`Games`** 工作表！（若略過此步，第一次從網頁上傳時也會自動建立）。
 
 ### Step 2：部署為網頁應用程式 (Web App)
 1. 在 Apps Script 右上角點擊 **「部署 (Deploy)」➔「新增部署作業 (New deployment)」**。
@@ -62,14 +62,13 @@ Darts/
 
 ## 🤖 如何把 Google Sheets 交給 Gemini 分析你的打鏢數據？
 
-試算表內會自動維護兩張結構化工作表：
-- **`Games` 表（一場一列）**：包含 `Mode`、`Finished`、`Rounds_Played`、`Total_Darts`、`PPD`、`PPR`、`MPR`、`Effective_Marks`、`Raw_Marks`、`S_Bull_Hits`、`D_Bull_Hits`、`Bust_Rounds`、`Awards_JSON` 與 `Round_By_Round`（每輪三鏢濃縮軌跡）。
-- **`Darts` 表（一鏢一列）**：包含每一鏢是第幾輪 (`Round`)、手裡第幾支鏢 (`Dart_No`: 1/2/3)、落點代碼 (`Code`)、靶位 (`Segment`)、倍率 (`Multiplier`)。
+試算表內會自動維護單一結構化工作表：
+- **`Games` 表（一場一列）**：包含 `Mode`、`Finished`、`Rounds_Played`、`Total_Darts`、`PPD`、`PPR`、`MPR`、`Effective_Marks`、`Raw_Marks`、`S_Bull_Hits`、`D_Bull_Hits`、`Bust_Rounds`、`Awards_JSON` 與 `Round_By_Round`（每輪三鏢完整軌跡，如 `R1:T20,T20,S1(121)|R2:SB,DB,M(100)`）。
 
-你可以直接在 Gemini 對話框附加這份 Google Sheets（或從網頁分析頁點「匯出 Games.csv / Darts.csv」上傳給 Gemini），並這樣問 Gemini：
-- *「幫我從 `Darts` 表分析我在 501 模式下，手裡的第 1 鏢、第 2 鏢、第 3 鏢哪一支最容易失常或脫靶？」*
+你可以直接在 Gemini 對話框附加這份 Google Sheets，並這樣問 Gemini：
+- *「幫我從 `Games` 表的 `Round_By_Round` 欄位分析我在 501 模式下，手裡的第 1 鏢、第 2 鏢、第 3 鏢哪一支最容易失常或脫靶？」*
 - *「幫我看 `Games` 表最近 20 場 Count-Up 跟 501，我的內紅心 (D-Bull) 佔總紅心的比例有沒有提升？」*
-- *「在 Cricket 模式下，根據 `Darts` 表，15 到 20 哪一個數字我需要花最多鏢才能關門？」*
+- *「在 Cricket 模式下，根據 `Round_By_Round` 欄位，15 到 20 哪一個數字我需要花最多鏢才能關門？」*
 
 ---
 
