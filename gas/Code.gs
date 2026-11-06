@@ -153,6 +153,14 @@ function doPost(e) {
           ? [body.game]
           : [];
 
+    if (body.action === "ping") {
+      return jsonResponse({
+        ok: true,
+        sheetName: ss.getName(),
+        totalGames: Math.max(0, gamesSheet.getLastRow() - 1),
+      });
+    }
+
     if (incoming.length === 0) {
       return jsonResponse({ ok: false, error: "No game payload provided" });
     }

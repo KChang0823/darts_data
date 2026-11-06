@@ -712,6 +712,29 @@ async function testGasConnection(customUrl, customPasscode) {
   const passcode = (customPasscode ?? settings.passcode).trim();
   if (!url) throw new Error("請先填入 GAS Web App 網址");
 
+  // Attempt 1: POST via text/plain (most reliable against CORS issues in modern browsers)
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify({
+        action: "ping",
+        passcode: passcode || undefined,
+      }),
+      redirect: "follow",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok) return data;
+      if (data.error) throw new Error(data.error);
+    }
+  } catch (postErr) {
+    // If POST fails, fallback to GET ping
+  }
+
+  // Attempt 2: GET with searchParams
   const endpoint = new URL(url);
   endpoint.searchParams.set("action", "ping");
   if (passcode) endpoint.searchParams.set("passcode", passcode);
