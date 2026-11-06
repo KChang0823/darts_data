@@ -1,20 +1,18 @@
 /**
- * Home Darts Arcade Tracker — Google Apps Script (GAS) 後端
+ * Home Darts Arcade Tracker — Google Apps Script (GAS) 後端 (Single Sheet: Games Only)
  *
  * 使用方式：
  * 1. 新增一份空白 Google 試算表（Google Sheets）
  * 2. 點選頂部選單「擴充功能」➔「Apps Script」
  * 3. 將本檔案內容完整複製並覆蓋編輯器中的 Code.gs
- * 4. （選用）先在上方函式下拉選單選擇 `setup` 並點「執行」通過權限審查，會自動建立 Games 與 Darts 兩張工作表
- * 5. 點擊右上角「部署」➔「新增部署作業」：
+ * 4. 點擊右上角「部署」➔「新增部署作業」：
  *    - 選取類型：「網頁應用程式 (Web App)」
  *    - 執行身分：「我 (Me)」
  *    - 誰可以存取：「任何人 (Anyone)」
- * 6. 複製產生的「網頁應用程式網址 (Web App URL)」，貼到打鏢 App 的「⚙️ 設定」中即可自動雙向同步！
+ * 5. 複製產生的「網頁應用程式網址 (Web App URL)」，貼到打鏢 App 的「雲端設定」中即可！
  */
 
 const GAMES_SHEET_NAME = "Games";
-const DARTS_SHEET_NAME = "Darts";
 
 const GAMES_HEADERS = [
   "Game_ID",
@@ -38,29 +36,13 @@ const GAMES_HEADERS = [
   "Round_By_Round",
 ];
 
-const DARTS_HEADERS = [
-  "Game_ID",
-  "Timestamp",
-  "Mode",
-  "Round",
-  "Dart_No",
-  "Code",
-  "Segment",
-  "Multiplier",
-  "Points",
-  "Effective_Marks",
-  "Raw_Marks",
-  "Is_Bust_Round",
-];
-
 /**
- * 初始化試算表結構（可手動執行，亦會在第一次 API 呼叫時自動執行）
+ * 初始化試算表結構（第一次寫入或測試連線時會自動執行）
  */
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheet(ss, GAMES_SHEET_NAME, GAMES_HEADERS);
-  ensureSheet(ss, DARTS_SHEET_NAME, DARTS_HEADERS);
-  return "Setup completed: Games & Darts sheets are ready.";
+  return "Setup completed: Games sheet is ready.";
 }
 
 function ensureSheet(ss, name, headers) {
@@ -73,8 +55,8 @@ function ensureSheet(ss, name, headers) {
     sheet.setFrozenRows(1);
     const headerRange = sheet.getRange(1, 1, 1, headers.length);
     headerRange.setFontWeight("bold");
-    headerRange.setBackground("#1E293B");
-    headerRange.setFontColor("#F8FAFC");
+    headerRange.setBackground("#18191B");
+    headerRange.setFontColor("#F7F8F8");
   }
   return sheet;
 }
@@ -82,7 +64,7 @@ function ensureSheet(ss, name, headers) {
 /**
  * 處理 GET 請求：
  * - ?action=ping  ➔ 測試連線與回傳試算表目前總場數
- * - ?action=pull  ➔ 從試算表拉取歷史對局（供跨手機/iPad 同步）
+ * - ?action=pull  ➔ 從試算表拉取歷史對局
  */
 function doGet(e) {
   try {
@@ -93,7 +75,6 @@ function doGet(e) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const gamesSheet = ensureSheet(ss, GAMES_SHEET_NAME, GAMES_HEADERS);
-    const dartsSheet = ensureSheet(ss, DARTS_SHEET_NAME, DARTS_HEADERS);
 
     const action = params.action || "ping";
     const totalGames = Math.max(0, gamesSheet.getLastRow() - 1);
@@ -108,7 +89,7 @@ function doGet(e) {
 
     if (action === "pull") {
       const limit = Math.min(Number(params.limit) || 100, 300);
-      const games = readRecentGames(gamesSheet, dartsSheet, limit);
+      const games = readRecentGames(gamesSheet, limit);
       return jsonResponse({
         ok: true,
         totalGames: totalGames,
@@ -124,7 +105,7 @@ function doGet(e) {
 
 /**
  * 處理 POST 請求（前端以 Content-Type: text/plain 傳送 JSON 字串，避開 CORS preflight）
- * 支援 action: "saveGame" | "syncBatch"
+ * 支援 action: "ping" | "saveGame" | "syncBatch"
  */
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -144,14 +125,6 @@ function doPost(e) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const gamesSheet = ensureSheet(ss, GAMES_SHEET_NAME, GAMES_HEADERS);
-    const dartsSheet = ensureSheet(ss, DARTS_SHEET_NAME, DARTS_HEADERS);
-
-    const incoming =
-      body.action === "syncBatch" && Array.isArray(body.games)
-        ? body.games
-        : body.game
-          ? [body.game]
-          : [];
 
     if (body.action === "ping") {
       return jsonResponse({
@@ -161,13 +134,19 @@ function doPost(e) {
       });
     }
 
+    const incoming =
+      body.action === "syncBatch" && Array.isArray(body.games)
+        ? body.games
+        : body.game
+          ? [body.game]
+          : [];
+
     if (incoming.length === 0) {
       return jsonResponse({ ok: false, error: "No game payload provided" });
     }
 
     const existingIds = getExistingGameIds(gamesSheet);
     const gameRows = [];
-    const dartRows = [];
     const savedIds = [];
     const skippedIds = [];
 
@@ -204,26 +183,6 @@ function doPost(e) {
         JSON.stringify(g.awards || {}),
         g.roundByRound || "",
       ]);
-
-      if (Array.isArray(g.darts)) {
-        for (let j = 0; j < g.darts.length; j++) {
-          const d = g.darts[j];
-          dartRows.push([
-            g.gameId,
-            ts,
-            g.mode,
-            d.round,
-            d.dartNo,
-            d.code,
-            d.segment,
-            d.multiplier,
-            d.points ?? "",
-            d.effectiveMarks ?? "",
-            d.rawMarks ?? "",
-            Boolean(d.isBustRound),
-          ]);
-        }
-      }
     }
 
     if (gameRows.length > 0) {
@@ -231,13 +190,6 @@ function doPost(e) {
       gamesSheet
         .getRange(startRow, 1, gameRows.length, GAMES_HEADERS.length)
         .setValues(gameRows);
-    }
-
-    if (dartRows.length > 0) {
-      const startDartRow = dartsSheet.getLastRow() + 1;
-      dartsSheet
-        .getRange(startDartRow, 1, dartRows.length, DARTS_HEADERS.length)
-        .setValues(dartRows);
     }
 
     return jsonResponse({
@@ -265,7 +217,7 @@ function getExistingGameIds(gamesSheet) {
   return set;
 }
 
-function readRecentGames(gamesSheet, dartsSheet, limit) {
+function readRecentGames(gamesSheet, limit) {
   const lastRow = gamesSheet.getLastRow();
   if (lastRow <= 1) return [];
 
@@ -275,7 +227,6 @@ function readRecentGames(gamesSheet, dartsSheet, limit) {
     .getRange(startRow, 1, count, GAMES_HEADERS.length)
     .getValues();
 
-  const gameMap = new Map();
   const list = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -308,37 +259,8 @@ function readRecentGames(gamesSheet, dartsSheet, limit) {
       bustRounds: Number(r[16]) || 0,
       awards: awards,
       roundByRound: String(r[18] || ""),
-      darts: [],
     };
-    gameMap.set(gameId, item);
     list.push(item);
-  }
-
-  // 讀取對應的單鏢紀錄（讀取最後 count * 45 列以提升速度）
-  const lastDartRow = dartsSheet.getLastRow();
-  if (lastDartRow > 1) {
-    const maxDartRows = Math.min(lastDartRow - 1, count * 45);
-    const startDartRow = lastDartRow - maxDartRows + 1;
-    const dRows = dartsSheet
-      .getRange(startDartRow, 1, maxDartRows, DARTS_HEADERS.length)
-      .getValues();
-    for (let j = 0; j < dRows.length; j++) {
-      const dr = dRows[j];
-      const gId = String(dr[0]);
-      const target = gameMap.get(gId);
-      if (!target) continue;
-      target.darts.push({
-        round: Number(dr[3]),
-        dartNo: Number(dr[4]),
-        code: String(dr[5]),
-        segment: Number(dr[6]),
-        multiplier: Number(dr[7]),
-        points: dr[8] === "" ? null : Number(dr[8]),
-        effectiveMarks: dr[9] === "" ? null : Number(dr[9]),
-        rawMarks: dr[10] === "" ? null : Number(dr[10]),
-        isBustRound: Boolean(dr[11]),
-      });
-    }
   }
 
   return list;
@@ -361,4 +283,3 @@ function jsonResponse(obj) {
     ContentService.MimeType.JSON
   );
 }
-
