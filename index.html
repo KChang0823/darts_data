@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#07080a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Darts Arena" />
+    <title>DARTS ARENA — Precision Score &amp; Telemetry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icon.svg?v=5" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon.svg?v=5" />
+    <link rel="stylesheet" href="./css/styles.css?v=4" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- ==================== TOP NAVIGATION BAR ==================== -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="svg-icon icon-brand">
+              <circle cx="12" cy="12" r="9.5" />
+              <circle cx="12" cy="12" r="5.5" />
+              <circle cx="12" cy="12" r="2" fill="currentColor" />
+            </svg>
+          </div>
+
+          <div class="mode-switcher" role="group" aria-label="選擇遊戲模式">
+            <button type="button" class="mode-btn" data-mode="301">
+              <span>301</span><small>10R</small>
+            </button>
+            <button type="button" class="mode-btn is-active" data-mode="501">
+              <span>501</span><small>10R</small>
+            </button>
+            <button type="button" class="mode-btn" data-mode="701">
+              <span>701</span><small>15R</small>
+            </button>
+            <button type="button" class="mode-btn" data-mode="COUNT_UP">
+              <span>COUNT-UP</span><small>8R</small>
+            </button>
+            <button type="button" class="mode-btn" data-mode="CRICKET">
+              <span>CRICKET</span><small>15R</small>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            id="btn-new-game"
+            class="icon-pill-btn"
+            title="重開新局"
+          >
+            <svg viewBox="0 0 24 24" class="svg-icon" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span>新局</span>
+          </button>
+        </div>
+
+        <div class="topbar-center" id="quick-banner" aria-live="polite">
+          <span class="banner-item">
+            <span class="banner-label" id="banner-primary-label">近10場 PPD</span>
+            <strong class="banner-val" id="banner-primary-val">—</strong>
+          </span>
+          <span class="banner-sep" aria-hidden="true"></span>
+          <span class="banner-item">
+            <span class="banner-label" id="banner-sec-label">最佳 PB</span>
+            <strong class="banner-val" id="banner-sec-val">—</strong>
+          </span>
+          <span class="banner-badge" id="banner-badge" hidden>RT —</span>
+        </div>
+
+        <div class="topbar-right">
+          <span
+            id="wakelock-indicator"
+            class="wakelock-pill"
+            data-active="false"
+            title="螢幕防休眠狀態"
+          >
+            <span class="wl-dot" aria-hidden="true"></span>
+            <span id="wakelock-text">常亮</span>
+          </span>
+
+          <button
+            type="button"
+            id="btn-toggle-view"
+            class="nav-tab-btn"
+            aria-pressed="false"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              class="svg-icon"
+              id="toggle-view-icon"
+              aria-hidden="true"
+            >
+              <path d="M18 20V10" />
+              <path d="M12 20V4" />
+              <path d="M6 20v-6" />
+            </svg>
+            <span id="toggle-view-label">數據分析</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-open-settings"
+            class="sync-pill-btn"
+            data-sync-state="local"
+            title="雲端同步與設定"
+          >
+            <span class="sync-dot" aria-hidden="true"></span>
+            <span id="sync-status-text">雲端設定</span>
+            <svg viewBox="0 0 24 24" class="svg-icon" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ==================== PLAY VIEW ==================== -->
+      <main id="view-play" class="play-layout">
+        <!-- Left / Upper Column: Scoreboard + Slots + Landscape Round History -->
+        <section class="arena-column" aria-label="記分看板區">
+          <!-- Scoreboard Card -->
+          <div class="scoreboard-card" id="scoreboard-card" data-kind="x01">
+            <div class="scoreboard-header">
+              <div class="round-indicator">
+                <span class="round-tag">ROUND</span>
+                <strong id="round-current">1</strong>
+                <span class="round-slash">/</span>
+                <span id="round-max">10</span>
+              </div>
+
+              <div class="live-metrics">
+                <div class="metric-chip" id="chip-ppd">
+                  <span class="chip-label" id="live-primary-label">PPD / PPR</span>
+                  <strong class="chip-val" id="live-primary-val">0.00 / 0.0</strong>
+                </div>
+                <div class="metric-chip">
+                  <span class="chip-label" id="live-sec-label">BULL (D-BULL)</span>
+                  <strong class="chip-val" id="live-sec-val">0 (DB 0)</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- 01 & Count-Up Giant Number Display -->
+            <div id="board-numeric" class="board-numeric">
+              <div class="score-caption" id="score-caption">REMAINING POINTS</div>
+              <div class="giant-score" id="giant-score">501</div>
+            </div>
+
+            <!-- Cricket Tactical Board (7 targets: 20..15 + BULL) -->
+            <div id="board-cricket" class="board-cricket" hidden>
+              <div class="cricket-grid" id="cricket-grid"></div>
+            </div>
+
+            <!-- Status / Checkout / Award Banner -->
+            <div class="board-footer" id="board-footer">
+              <div id="checkout-banner" class="hint-banner" hidden>
+                <span class="hint-tag">CHECKOUT</span>
+                <strong id="checkout-route-text">BULL ➔ BULL ➔ S20</strong>
+              </div>
+              <div id="status-banner" class="status-banner" hidden></div>
+            </div>
+          </div>
+
+          <!-- Current Round 3-Dart Slots + Undo -->
+          <div class="slots-bar" aria-label="本輪三鏢紀錄">
+            <div class="dart-slots" id="dart-slots">
+              <div class="dart-slot is-active" data-slot="0">
+                <span class="slot-index">1ST</span>
+                <strong class="slot-code">—</strong>
+                <span class="slot-sub"></span>
+              </div>
+              <div class="dart-slot" data-slot="1">
+                <span class="slot-index">2ND</span>
+                <strong class="slot-code">—</strong>
+                <span class="slot-sub"></span>
+              </div>
+              <div class="dart-slot" data-slot="2">
+                <span class="slot-index">3RD</span>
+                <strong class="slot-code">—</strong>
+                <span class="slot-sub"></span>
+              </div>
+            </div>
+
+            <div class="round-subtotal">
+              <span class="subtotal-label" id="subtotal-label">ROUND</span>
+              <strong class="subtotal-val" id="subtotal-val">0</strong>
+            </div>
+
+            <button
+              type="button"
+              id="btn-undo"
+              class="undo-btn"
+              disabled
+              title="退回上一鏢（支援跨輪退回）"
+            >
+              <svg viewBox="0 0 24 24" class="svg-icon" aria-hidden="true">
+                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                <line x1="18" y1="9" x2="12" y2="15" />
+                <line x1="12" y1="9" x2="18" y2="15" />
+              </svg>
+              <span>退格</span>
+            </button>
+          </div>
+
+          <!-- Landscape Round History Log (Auto-shown in landscape on iPad/Tablet) -->
+          <div class="landscape-history-panel" aria-label="本場各輪明細">
+            <div class="panel-title-row">
+              <span>ROUND LOG · 本場投擲軌跡</span>
+              <span id="live-darts-count" class="muted-tag">0 DARTS</span>
+            </div>
+            <div class="round-log-list" id="round-log-list">
+              <div class="round-log-empty">完成第一輪後將即時顯示各輪明細</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right / Lower Column: Touch Keypad -->
+        <section class="keypad-column" aria-label="極速輸入鍵盤">
+          <!-- Row 1: Express Soft-Tip Bull & Miss Buttons -->
+          <div class="express-row">
+            <button type="button" class="key-btn key-sbull" data-dart="SB">
+              <span class="key-main">S-BULL</span>
+              <small class="key-sub" id="sub-sbull">OUTER · 50</small>
+            </button>
+            <button type="button" class="key-btn key-dbull" data-dart="DB">
+              <span class="key-main">D-BULL</span>
+              <small class="key-sub" id="sub-dbull">INNER · 50</small>
+            </button>
+            <button type="button" class="key-btn key-miss" data-dart="M">
+              <span class="key-main">MISS</span>
+              <small class="key-sub">OUT · 0</small>
+            </button>
+          </div>
+
+          <!-- Row 2: Pre-Multiplier Lock (Double x2 / Triple x3) -->
+          <div class="multiplier-row">
+            <button
+              type="button"
+              id="btn-mult-2"
+              class="mult-btn mult-double"
+              data-mult="D"
+              aria-pressed="false"
+            >
+              <span class="mult-indicator" aria-hidden="true">○</span>
+              <span class="mult-text">DOUBLE ×2</span>
+            </button>
+            <button
+              type="button"
+              id="btn-mult-3"
+              class="mult-btn mult-triple"
+              data-mult="T"
+              aria-pressed="false"
+            >
+              <span class="mult-indicator" aria-hidden="true">○</span>
+              <span class="mult-text">TRIPLE ×3</span>
+            </button>
+            <button
+              type="button"
+              id="btn-cricket-pad-mode"
+              class="pad-toggle-btn"
+              hidden
+              title="切換 Cricket 精簡大鍵盤 (15~20) 或完整 1~20 鍵盤"
+            >
+              <span id="cricket-pad-label">展開 1~14</span>
+            </button>
+          </div>
+
+          <!-- Row 3: Dynamic Segment Matrix (Pre-populated with 20..1 so it is ALWAYS visible) -->
+          <div id="number-grid" class="number-grid" data-mult-active="S">
+            <button type="button" class="num-key is-high-tier" data-segment="20" data-dart="S20"><span>20</span><small>20 分</small></button>
+            <button type="button" class="num-key is-high-tier" data-segment="19" data-dart="S19"><span>19</span><small>19 分</small></button>
+            <button type="button" class="num-key is-high-tier" data-segment="18" data-dart="S18"><span>18</span><small>18 分</small></button>
+            <button type="button" class="num-key is-high-tier" data-segment="17" data-dart="S17"><span>17</span><small>17 分</small></button>
+            <button type="button" class="num-key is-high-tier" data-segment="16" data-dart="S16"><span>16</span><small>16 分</small></button>
+            <button type="button" class="num-key is-high-tier" data-segment="15" data-dart="S15"><span>15</span><small>15 分</small></button>
+            <button type="button" class="num-key" data-segment="14" data-dart="S14"><span>14</span><small>14 分</small></button>
+            <button type="button" class="num-key" data-segment="13" data-dart="S13"><span>13</span><small>13 分</small></button>
+            <button type="button" class="num-key" data-segment="12" data-dart="S12"><span>12</span><small>12 分</small></button>
+            <button type="button" class="num-key" data-segment="11" data-dart="S11"><span>11</span><small>11 分</small></button>
+            <button type="button" class="num-key" data-segment="10" data-dart="S10"><span>10</span><small>10 分</small></button>
+            <button type="button" class="num-key" data-segment="9" data-dart="S9"><span>9</span><small>9 分</small></button>
+            <button type="button" class="num-key" data-segment="8" data-dart="S8"><span>8</span><small>8 分</small></button>
+            <button type="button" class="num-key" data-segment="7" data-dart="S7"><span>7</span><small>7 分</small></button>
+            <button type="button" class="num-key" data-segment="6" data-dart="S6"><span>6</span><small>6 分</small></button>
+            <button type="button" class="num-key" data-segment="5" data-dart="S5"><span>5</span><small>5 分</small></button>
+            <button type="button" class="num-key" data-segment="4" data-dart="S4"><span>4</span><small>4 分</small></button>
+            <button type="button" class="num-key" data-segment="3" data-dart="S3"><span>3</span><small>3 分</small></button>
+            <button type="button" class="num-key" data-segment="2" data-dart="S2"><span>2</span><small>2 分</small></button>
+            <button type="button" class="num-key" data-segment="1" data-dart="S1"><span>1</span><small>1 分</small></button>
+          </div>
+
+          <!-- Row 4: Full-Width Confirm / Next Round Button -->
+          <div class="confirm-row">
+            <button
+              type="button"
+              id="btn-confirm-round"
+              class="confirm-btn"
+              disabled
+            >
+              <span class="confirm-main" id="confirm-btn-text">
+                CONFIRM ROUND · 確認換輪
+              </span>
+              <small class="confirm-sub" id="confirm-btn-sub">
+                請點選本輪落點（全脫靶請點 MISS）
+              </small>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <!-- ==================== ANALYTICS DASHBOARD VIEW ==================== -->
+      <main id="view-stats" class="stats-layout" hidden>
+        <div class="stats-container">
+          <!-- Filter Bar & Overall Flight Rating Card -->
+          <div class="stats-header-bar">
+            <div class="stats-filter-group" role="group" aria-label="篩選統計模式">
+              <button type="button" class="filter-btn" data-filter="301">
+                301
+              </button>
+              <button type="button" class="filter-btn is-active" data-filter="501">
+                501
+              </button>
+              <button type="button" class="filter-btn" data-filter="701">
+                701
+              </button>
+              <button type="button" class="filter-btn" data-filter="ALL_01">
+                01 綜合
+              </button>
+              <button type="button" class="filter-btn" data-filter="COUNT_UP">
+                Count-Up
+              </button>
+              <button type="button" class="filter-btn" data-filter="CRICKET">
+                Cricket
+              </button>
+            </div>
+
+            <div class="rating-hero-badge" id="stats-rating-badge">
+              <span class="rt-label">DARTSLIVE RATING</span>
+              <strong class="rt-val" id="stats-rating-text">尚無足夠數據</strong>
+            </div>
+          </div>
+
+          <!-- 4 Core KPI Cards -->
+          <div class="kpi-grid" id="stats-kpi-grid"></div>
+
+          <!-- Trend SVG Chart Card -->
+          <section class="stats-card">
+            <div class="card-head">
+              <h2 class="card-title" id="chart-title">近 20 場表現走勢</h2>
+              <span class="card-subtitle" id="chart-subtitle"></span>
+            </div>
+            <div id="trend-chart-box" class="trend-chart-box"></div>
+          </section>
+
+          <!-- Two-Column Breakdown: Dart 1/2/3 Stability & Bull Ratio -->
+          <div class="stats-two-col">
+            <section class="stats-card">
+              <div class="card-head">
+                <h2 class="card-title">第 1 / 2 / 3 鏢穩定度診斷</h2>
+                <span class="card-subtitle">分析手裡哪一支鏢最容易失常</span>
+              </div>
+              <div id="dart-slot-breakdown" class="slot-breakdown-list"></div>
+            </section>
+
+            <section class="stats-card">
+              <div class="card-head">
+                <h2 class="card-title">紅心精準度 &amp; 內外心比例</h2>
+                <span class="card-subtitle">S-Bull vs. D-Bull (Inner Black)</span>
+              </div>
+              <div id="bull-breakdown" class="bull-breakdown-box"></div>
+            </section>
+          </div>
+
+          <!-- Lifetime Awards Wall -->
+          <section class="stats-card">
+            <div class="card-head">
+              <h2 class="card-title">生涯高光獎章牆 (AWARDS)</h2>
+              <span class="card-subtitle">所有模式累計達成次數</span>
+            </div>
+            <div id="awards-wall" class="awards-wall-grid"></div>
+          </section>
+
+          <!-- Recent Games History Table -->
+          <section class="stats-card">
+            <div class="card-head">
+              <h2 class="card-title">近期完賽紀錄明細</h2>
+            </div>
+            <div class="history-table-wrap">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>時間</th>
+                    <th>模式</th>
+                    <th>結果</th>
+                    <th>輪數 / 鏢數</th>
+                    <th>核心表現</th>
+                    <th>Bull (S/D)</th>
+                    <th>每輪軌跡摘要</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- ==================== MODAL 1: GAME OVER SUMMARY ==================== -->
+    <dialog id="dialog-gameover" aria-labelledby="gameover-title">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div>
+            <span class="modal-eyebrow" id="gameover-eyebrow">GAME FINISHED</span>
+            <h2 id="gameover-title" class="modal-title">501 完賽結算</h2>
+          </div>
+          <span class="pb-badge" id="gameover-pb-badge" hidden>NEW PB</span>
+        </div>
+
+        <div class="gameover-hero">
+          <div class="hero-stat-main">
+            <span class="hero-stat-label" id="go-main-label">本場 PPD (PPR)</span>
+            <strong class="hero-stat-val" id="go-main-val">22.40</strong>
+            <span class="hero-delta" id="go-delta-text">vs 近10場 —</span>
+          </div>
+          <div class="hero-stat-grid" id="go-sub-grid"></div>
+        </div>
+
+        <div id="go-awards-row" class="go-awards-row" hidden></div>
+
+        <div class="go-rounds-preview" id="go-rounds-preview"></div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-gameover-undo" class="secondary-btn">
+            退回最後一鏢修正
+          </button>
+          <button
+            type="button"
+            id="btn-play-again"
+            class="primary-btn"
+            autofocus
+          >
+            再來一局（同模式）
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ==================== MODAL 2: CONFIRM RESTART / SWITCH ==================== -->
+    <dialog id="dialog-confirm" aria-labelledby="confirm-title" closedby="any">
+      <div class="modal-box modal-box-sm">
+        <h2 id="confirm-title" class="modal-title">放棄目前進行中的對局？</h2>
+        <p class="modal-desc" id="confirm-desc">
+          這局尚未打完，切換模式或重開新局將會清除本局目前已輸入的分數。
+        </p>
+        <form method="dialog" class="modal-actions">
+          <button type="submit" value="cancel" class="secondary-btn" autofocus>
+            繼續本局
+          </button>
+          <button type="submit" value="confirm" class="danger-btn">
+            確定重開
+          </button>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- ==================== MODAL 3: SETTINGS & GOOGLE SHEETS SYNC ==================== -->
+    <dialog id="dialog-settings" aria-labelledby="settings-title" closedby="any">
+      <div class="modal-box modal-box-lg">
+        <div class="modal-header">
+          <div>
+            <span class="modal-eyebrow">CLOUD SYNC &amp; PREFERENCES</span>
+            <h2 id="settings-title" class="modal-title">
+              Google Sheets 雙向同步與設定
+            </h2>
+          </div>
+          <button
+            type="button"
+            id="btn-close-settings"
+            class="icon-close-btn"
+            aria-label="關閉設定視窗"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="settings-body">
+          <div class="form-group">
+            <label for="input-gas-url" class="form-label">
+              Google Apps Script 網頁應用程式網址 (Web App URL)
+            </label>
+            <input
+              type="url"
+              id="input-gas-url"
+              class="form-input"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <small class="form-hint">
+              未填寫時所有數據皆保存在本機瀏覽器；填寫後每次完賽自動背景寫入 Google Sheets。
+            </small>
+          </div>
+
+          <div class="form-row-two">
+            <div class="form-group">
+              <label for="input-passcode" class="form-label">
+                通行碼 Passcode（選填）
+              </label>
+              <input
+                type="password"
+                id="input-passcode"
+                class="form-input"
+                placeholder="若 GAS 未設 PASSCODE 可留空"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="select-cricket-pad" class="form-label">
+                Cricket 預設鍵盤模式
+              </label>
+              <select id="select-cricket-pad" class="form-input">
+                <option value="compact">精簡巨型鍵盤（僅顯示 15~20）</option>
+                <option value="full">完整鍵盤（顯示 1~20 所有數字）</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="settings-sync-feedback" class="sync-feedback-box" hidden></div>
+
+          <div class="sync-action-row">
+            <button type="button" id="btn-save-settings" class="primary-btn">
+              儲存設定並測試連線
+            </button>
+            <button type="button" id="btn-push-cloud" class="secondary-btn">
+              上傳本機所有紀錄至試算表
+            </button>
+            <button type="button" id="btn-pull-cloud" class="secondary-btn">
+              從試算表拉取歷史紀錄
+            </button>
+          </div>
+
+          <details class="setup-guide-details">
+            <summary>如何設置 Google Sheets 與 GAS？（3 分鐘完成）</summary>
+            <ol class="setup-steps-list">
+              <li>
+                在 Google 雲端硬碟新增一份空白試算表（例如命名為
+                <code>Darts_Database</code>）。
+              </li>
+              <li>
+                點選試算表頂部選單「<strong>擴充功能</strong>」➔「<strong>Apps Script</strong>」。
+              </li>
+              <li>
+                將本專案 <code>gas/Code.gs</code> 內的程式碼完整複製貼上，按儲存。
+              </li>
+              <li>
+                點選右上角「<strong>部署</strong>」➔「<strong>新增部署作業</strong>」：
+                <ul>
+                  <li>類型選擇「<strong>網頁應用程式 (Web App)</strong>」</li>
+                  <li>執行身分選「<strong>我 (Me)</strong>」</li>
+                  <li>誰可以存取選「<strong>任何人 (Anyone)</strong>」</li>
+                </ul>
+              </li>
+              <li>
+                複製產生的 <code>https://script.google.com/macros/s/.../exec</code> 網址貼回上方輸入框，點擊「儲存設定並測試連線」即完成！
+              </li>
+            </ol>
+          </details>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Standard defer script works on BOTH file:// and http(s):// -->
+    <script defer src="./js/bundle.js?v=4"></script>
+  </body>
+</html>

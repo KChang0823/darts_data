@@ -1,0 +1,20 @@
+{
+  "name": "Home Darts Arcade Tracker",
+  "short_name": "DartsTracker",
+  "description": "個人飛鏢極速計分與 Google Sheets 雙向數據分析平台 (301/501/701/Count-Up/Cricket)",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07080A",
+  "theme_color": "#07080A",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
