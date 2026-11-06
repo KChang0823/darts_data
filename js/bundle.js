@@ -1234,20 +1234,23 @@ function computeDashboardStats(history, filterMode = "501") {
     sBullHits += g.sBullHits || 0;
     dBullHits += g.dBullHits || 0;
 
-    if (Array.isArray(g.darts)) {
-      for (const d of g.darts) {
-        if (d.code === "X") continue; // bust auto-fill
-        const slot = slotStats[d.dartNo];
-        if (slot) {
-          slot.count += 1;
-          slot.sumPoints += d.points || 0;
-          slot.sumMarks += d.effectiveMarks ?? d.rawMarks ?? 0;
-          if (d.segment === 25) slot.bulls += 1;
-          if (d.code === "M") slot.misses += 1;
-        }
-        const key = d.segment === 25 ? "BULL" : d.code === "M" ? "MISS" : String(d.segment);
-        segmentCounts.set(key, (segmentCounts.get(key) || 0) + 1);
+    const dartsList =
+      Array.isArray(g.darts) && g.darts.length > 0
+        ? g.darts
+        : parseDartsFromRoundByRound(g.roundByRound);
+
+    for (const d of dartsList) {
+      if (d.code === "X") continue; // bust auto-fill
+      const slot = slotStats[d.dartNo];
+      if (slot) {
+        slot.count += 1;
+        slot.sumPoints += d.points || 0;
+        slot.sumMarks += d.effectiveMarks ?? d.rawMarks ?? 0;
+        if (d.segment === 25) slot.bulls += 1;
+        if (d.code === "M") slot.misses += 1;
       }
+      const key = d.segment === 25 ? "BULL" : d.code === "M" ? "MISS" : String(d.segment);
+      segmentCounts.set(key, (segmentCounts.get(key) || 0) + 1);
     }
   }
 
@@ -1435,6 +1438,40 @@ function formatShortDate(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso).slice(5, 10);
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/**
+ * Reconstruct per-dart objects from `roundByRound` string (e.g. "R1:T20,T20,S1(121)|R2:SB,DB,M(100)")
+ * so that games pulled from the single-sheet `Games` table still support Dart 1/2/3 stability diagnostics.
+ */
+function parseDartsFromRoundByRound(roundByRound) {
+  if (!roundByRound || typeof roundByRound !== "string") return [];
+  const out = [];
+  const rounds = roundByRound.split("|");
+  for (let rIdx = 0; rIdx < rounds.length; rIdx++) {
+    const chunk = rounds[rIdx].trim();
+    if (!chunk) continue;
+    // Strip "R1:" prefix and "(180)" or "(+3M)" suffix
+    const withoutPrefix = chunk.replace(/^R\d+:/i, "");
+    const codesPart = withoutPrefix.replace(/\([^)]*\)\s*$/, "");
+    const codes = codesPart.split(",").map((s) => s.trim()).filter(Boolean);
+    for (let i = 0; i < codes.length; i++) {
+      try {
+        const parsed = parseDart(codes[i]);
+        out.push({
+          round: rIdx + 1,
+          dartNo: i + 1,
+          code: parsed.code,
+          segment: parsed.segment,
+          multiplier: parsed.multiplier,
+          points: parsed.points,
+          rawMarks: parsed.rawMarks,
+          effectiveMarks: parsed.rawMarks,
+        });
+      } catch (_) {}
+    }
+  }
+  return out;
 }
 
 

@@ -87,7 +87,8 @@ test("computeDashboardStats & CSV builders aggregate Dart 1/2/3, Bulls, and Awar
   assert.equal(dash.awardsTotal.hatTrick, 1);
   assert.equal(dash.awardsTotal.lowTon, 3);
   assert.equal(dash.byDartNo[0].avgVal, 50);
-  assert.equal(dash.byDartNo[2].missRate, 100);
+  assert.equal(dash.byDartNo[1].avgVal, 35); // (50 from g-2 + 20 from g-1 roundByRound) / 2
+  assert.equal(dash.byDartNo[2].missRate, 50); // 1 miss in g-2, 1 hit (S20) in g-1 roundByRound
 
   const svg = renderTrendSvg(dash.trendSeries, { avgLine: dash.last10Avg });
   assert.match(svg, /<svg/);
